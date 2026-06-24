@@ -90,7 +90,7 @@ async def start(message: Message, state: FSMContext):
 @dp.callback_query(F.data == "choose_subject")
 async def choose_subject(callback: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🟢 Информатика (CS)", callback_data="subject_cs")],
+        [InlineKeyboardButton(text="🟢 Counter-Strike", callback_data="subject_cs")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")]
     ])
     await callback.message.edit_text("Выбери предмет:", reply_markup=kb)
@@ -115,7 +115,7 @@ async def subject_selected(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="🔙 Назад к предметам", callback_data="choose_subject")]
     ])
 
-    await callback.message.edit_text("🎯 Информатика\n\nВыбери режим:", reply_markup=kb)
+    await callback.message.edit_text("Counter-Strike\n\nВыбери режим:", reply_markup=kb)
     await callback.answer()
 
 
