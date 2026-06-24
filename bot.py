@@ -35,13 +35,10 @@ async def check_subscription(user_id: int) -> bool:
 
 
 async def subscription_required(callback: CallbackQuery) -> bool:
-    """Проверяет подписку и отправляет сообщение, если нет"""
     if not await check_subscription(callback.from_user.id):
         await callback.message.answer(
             "❗️ У тебя больше нет подписки на канал.\n\n"
-            "Чтобы продолжить пользоваться ботом — подпишись снова:\n"
-            f"{CHANNEL_ID}\n\n"
-            "После подписки нажми /start",
+            f"Подпишись заново: {CHANNEL_ID}\n\nПосле этого нажми /start",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
             ])
@@ -86,29 +83,18 @@ def after_answers_keyboard():
 @dp.message(Command("start"))
 async def start(message: Message, state: FSMContext):
     if not await check_subscription(message.from_user.id):
-        await message.answer(
-            "❗️ Бот работает при поддержке этого канала:\n\n"
-            f"{CHANNEL_ID}\n\nПодпишись и нажми /start снова.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
-            ])
-        )
+        await message.answer("❗️ Подпишись на канал, чтобы пользоваться ботом:\n" + CHANNEL_ID)
         return
 
     await state.clear()
-    await message.answer(
-        "🎉 Добро пожаловать в бот авторских вариантов ЕГЭ!\n\n"
-        "Выбери предмет и решай.",
-        reply_markup=main_menu()
-    )
+    await message.answer("🎉 Добро пожаловать в бот авторских вариантов ЕГЭ!\n\nВыбери предмет и решай.",
+                         reply_markup=main_menu())
 
 
-# ==================== ОСНОВНЫЕ ДЕЙСТВИЯ С ПРОВЕРКОЙ ====================
+# ==================== МЕНЮ ====================
 @dp.callback_query(F.data == "choose_subject")
 async def choose_subject(callback: CallbackQuery, state: FSMContext):
-    if not await subscription_required(callback):
-        return
-
+    if not await subscription_required(callback): return
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🟢 Counter-Strike", callback_data="subject_cs")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")]
@@ -119,8 +105,7 @@ async def choose_subject(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
-    if not await subscription_required(callback):
-        return
+    if not await subscription_required(callback): return
     await state.clear()
     await callback.message.edit_text("Главное меню:", reply_markup=main_menu())
     await callback.answer()
@@ -128,54 +113,105 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data.startswith("subject_"))
 async def subject_selected(callback: CallbackQuery, state: FSMContext):
-    if not await subscription_required(callback):
-        return
-
+    if not await subscription_required(callback): return
     subject = callback.data.split("_")[1]
     await state.update_data(subject=subject)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎲 Случайный вариант (без повторений)", callback_data="random_variant")],
         [InlineKeyboardButton(text="📋 Выбрать вариант самому", callback_data="manual_variant")],
-        [InlineKeyboardButton(text="🔙 Назад к предметам", callback_data="choose_subject")]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="choose_subject")]
     ])
-
     await callback.message.edit_text("Counter-Strike\n\nВыбери режим:", reply_markup=kb)
     await callback.answer()
 
 
-# ==================== ВАРИАНТЫ ====================
+# ==================== ПОЛУЧЕНИЕ ВАРИАНТА ====================
 @dp.callback_query(F.data == "random_variant")
 async def give_random_variant(callback: CallbackQuery, state: FSMContext):
-    if not await subscription_required(callback):
+    if not await subscription_required(callback): return
+
+    data = await state.get_data()
+    subject = data.get("subject", "cs")
+    user_id = callback.from_user.id
+
+    used = await get_used_variants(user_id, subject)
+    available = [i for i in range(1, 6) if i not in used]
+
+    if not available:
+        await callback.message.answer("✅ Ты уже решил все 5 вариантов по этому предмету!")
         return
-    # ... (весь твой старый код функции остаётся без изменений)
+
+    variant = random.choice(available)
+    await mark_variant_as_used(user_id, subject, variant)
+
+    await callback.message.answer_document(
+        FSInputFile(f"variants/variant{variant}.pdf"),
+        caption=f"🎲 Случайный вариант №{variant}\n\nУдачи в решении!"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{variant}")],
+        [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
+        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+    ])
+
+    await callback.message.answer("Когда решишь — нажми кнопку ниже:", reply_markup=kb)
+    await callback.answer()
 
 
 @dp.callback_query(F.data == "manual_variant")
 async def manual_variant(callback: CallbackQuery):
-    if not await subscription_required(callback):
-        return
-    # ... (остальной код)
+    if not await subscription_required(callback): return
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+                                                  [InlineKeyboardButton(text=f"Вариант №{i}",
+                                                                        callback_data=f"manual_{i}") for i in
+                                                   range(1, 6)]
+                                              ] + [[InlineKeyboardButton(text="🔙 Назад",
+                                                                         callback_data="choose_subject")]])
+
+    await callback.message.edit_text("Выбери номер варианта:", reply_markup=kb)
+    await callback.answer()
 
 
 @dp.callback_query(F.data.startswith("manual_"))
 async def give_manual_variant(callback: CallbackQuery):
-    if not await subscription_required(callback):
-        return
-    # ... (остальной код)
+    if not await subscription_required(callback): return
+    variant = int(callback.data.split("_")[1])
+
+    await callback.message.answer_document(
+        FSInputFile(f"variants/variant{variant}.pdf"),
+        caption=f"📋 Выбран вариант №{variant}"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{variant}")],
+        [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
+        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+    ])
+
+    await callback.message.answer("Когда решишь — нажми:", reply_markup=kb)
+    await callback.answer()
 
 
+# ==================== ОТВЕТЫ ====================
 @dp.callback_query(F.data.startswith("answers_"))
 async def send_answers(callback: CallbackQuery):
-    if not await subscription_required(callback):
-        return
-    # ... (остальной код)
+    if not await subscription_required(callback): return
+    variant = int(callback.data.split("_")[1])
+
+    await callback.message.answer_document(
+        FSInputFile(f"answers/answer{variant}.pdf"),
+        caption=f"📝 Ответы к варианту №{variant}\n\nПроверь свои результаты."
+    )
+
+    await callback.message.answer("Что дальше?", reply_markup=after_answers_keyboard())
+    await callback.answer()
 
 
+# ==================== ТЕХПОДДЕРЖКА ====================
 @dp.callback_query(F.data == "support")
 async def support(callback: CallbackQuery):
-    # Техподдержку можно оставить без проверки
     await callback.message.answer(
         "🆘 Связь с администратором:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -186,7 +222,7 @@ async def support(callback: CallbackQuery):
 
 
 async def main():
-    print("✅ Бот ЕГЭ запущен с обязательной подпиской!")
+    print("✅ Бот ЕГЭ запущен!")
     await dp.start_polling(bot)
 
 
