@@ -130,7 +130,7 @@ async def give_random_variant(callback: CallbackQuery, state: FSMContext):
     available = [i for i in range(1, 6) if i not in used]
 
     if not available:
-        await callback.message.answer("Ты уже решил все 5 вариантов по этому предмету!")
+        await callback.message.answer("Ты уже решил все варианты по этому предмету!")
         return
 
     variant = random.choice(available)
