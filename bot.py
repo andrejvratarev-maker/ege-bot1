@@ -38,7 +38,7 @@ async def subscription_required(callback: CallbackQuery) -> bool:
     if not await check_subscription(callback.from_user.id):
         await callback.message.answer(
             "❗️ У тебя больше нет подписки на канал.\n\n"
-            f"Подпишись заново: {CHANNEL_ID}\n\nПосле этого нажми /start",
+            f"Для продолжения подпишись снова: {CHANNEL_ID}\n\nПосле этого нажми /start",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
             ])
@@ -69,14 +69,14 @@ def main_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎮 Counter-Strike", callback_data="subject_cs")],
         [InlineKeyboardButton(text="⛏️ Minecraft", callback_data="subject_minecraft")],
-        [InlineKeyboardButton(text="🆘 Техподдержка", callback_data="support")]
+        [InlineKeyboardButton(text="🆘 Тех-поддержка", callback_data="support")]
     ])
 
 
 def after_answers_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
 
 
@@ -101,8 +101,8 @@ async def subject_selected(callback: CallbackQuery, state: FSMContext):
     await state.update_data(subject=subject)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎲 Случайный вариант (без повторений)", callback_data="random_variant")],
-        [InlineKeyboardButton(text="📋 Выбрать вариант самому", callback_data="manual_variant")],
+        [InlineKeyboardButton(text="🎲 Случайный вариант", callback_data="random_variant")],
+        [InlineKeyboardButton(text="📋 Выбрать вариант", callback_data="manual_variant")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
     ])
 
@@ -132,13 +132,13 @@ async def give_random_variant(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer_document(
         FSInputFile(f"variants/{subject}/variant{variant}.pdf"),
-        caption=f"🎲 Случайный вариант №{variant}\n\nУдачи в решении!"
+        caption=f"🎲 Случайный вариант №{variant}\n\nУдачи!"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
 
     await callback.message.answer("Когда решишь — нажми кнопку ниже:", reply_markup=kb)
@@ -177,12 +177,12 @@ async def give_manual_variant(callback: CallbackQuery):
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
 
-    await callback.message.answer("Когда решишь — нажми:", reply_markup=kb)
+    await callback.message.answer("Когда решишь — нажми кнопку ниже:", reply_markup=kb)
     await callback.answer()
 
 
