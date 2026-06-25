@@ -9,6 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 import aiosqlite
 from answers import correct_answers  # ← наш файл с ответами
+import os
 
 load_dotenv()
 
