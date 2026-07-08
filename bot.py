@@ -93,9 +93,9 @@ async def subject_selected(callback: CallbackQuery, state: FSMContext):
     # ←←← Здесь ты можешь вписать свою инструкцию
     instruction = (
         "📌 Инструкция по использованию:\n"
-        "• Выбери режим\n"
-        "• Решай вариант\n"
-        "• Нажми 'Я решил' для проверки\n\n"
+        "• Получи вариант\n"
+        "• Реши вариант в пдф формате (в браузере)\n"
+        "• Нажми 'Я решил', получи ответы, сравни их по таблице верных ответов, сложи баллы и посмотри свой результат по таблице перевода баллов во вторичную систему\n\n"
         "Удачи в подготовке!"
     )
 
@@ -130,11 +130,11 @@ async def give_random_variant(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer_document(
         FSInputFile(f"variants/{subject}/variant{variant}.pdf"),
-        caption=f"🎲 Случайный вариант №{variant} — {subject.upper()}\n\nАвтор: @твой_ник\n\nУдачи в решении!"
+        caption=f"🎲 Случайный вариант №{variant} — {subject.upper()}\n\nАвтор: @pro100karol777\n\nУдачи в решении!"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
         [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
@@ -166,11 +166,11 @@ async def give_manual_variant(callback: CallbackQuery):
 
     await callback.message.answer_document(
         FSInputFile(f"variants/{subject}/variant{variant}.pdf"),
-        caption=f"📋 Вариант №{variant} — {subject.upper()}\n\nАвтор: @твой_ник"
+        caption=f"📋 Вариант №{variant} — {subject.upper()}\n\nАвтор: @pro100karol777"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
         [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
