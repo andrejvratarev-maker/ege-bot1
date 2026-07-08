@@ -95,8 +95,8 @@ async def subject_selected(callback: CallbackQuery, state: FSMContext):
         "📌 Инструкция по использованию:\n"
         "• Получи вариант\n"
         "• Реши вариант в пдф формате (в браузере)\n"
-        "• Нажми 'Я решил', получи ответы, сравни их по таблице верных ответов, сложи баллы и посмотри свой результат по таблице перевода баллов во вторичную систему\n\n"
-        "Удачи в подготовке!"
+        "• Нажми Решено, получи ответы, сравни их по таблице верных ответов, сложи баллы и посмотри свой результат по таблице перевода баллов во вторичную систему.\n\n"
+        "Удачи!"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -188,7 +188,7 @@ async def send_answers(callback: CallbackQuery):
 
     await callback.message.answer_document(
         FSInputFile(f"answers/{subject}/answer{variant}.pdf"),
-        caption=f"📝 Ответы к варианту №{variant} — {subject.upper()}\n\nАвтор: @твой_ник"
+        caption=f"📝 Ответы к варианту №{variant} — {subject.upper()}\n\nАвтор: @pro100karol777"
     )
 
     await callback.message.answer("Что дальше?", reply_markup=after_answers_keyboard())
