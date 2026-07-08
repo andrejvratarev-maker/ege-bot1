@@ -20,10 +20,8 @@ bot = Bot(token=TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-
 class UserState(StatesGroup):
     choosing_subject = State()
-
 
 # ==================== ПРОВЕРКА ПОДПИСКИ ====================
 async def check_subscription(user_id: int) -> bool:
@@ -32,7 +30,6 @@ async def check_subscription(user_id: int) -> bool:
         return member.status in ["member", "administrator", "creator"]
     except:
         return False
-
 
 async def subscription_required(callback: CallbackQuery) -> bool:
     if not await check_subscription(callback.from_user.id):
@@ -47,7 +44,6 @@ async def subscription_required(callback: CallbackQuery) -> bool:
         return False
     return True
 
-
 # ==================== БАЗА ДАННЫХ ====================
 async def get_used_variants(user_id: int, subject: str):
     async with aiosqlite.connect("users.db") as db:
@@ -57,28 +53,24 @@ async def get_used_variants(user_id: int, subject: str):
         cursor = await db.execute("SELECT variant FROM used_variants WHERE user_id=? AND subject=?", (user_id, subject))
         return [row[0] for row in await cursor.fetchall()]
 
-
 async def mark_variant_as_used(user_id: int, subject: str, variant: int):
     async with aiosqlite.connect("users.db") as db:
         await db.execute("INSERT OR IGNORE INTO used_variants VALUES(?, ?, ?)", (user_id, subject, variant))
         await db.commit()
-
 
 # ==================== КЛАВИАТУРЫ ====================
 def main_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎮 Counter-Strike", callback_data="subject_cs")],
         [InlineKeyboardButton(text="⛏️ Minecraft", callback_data="subject_minecraft")],
-        [InlineKeyboardButton(text="🆘 Тех-поддержка", callback_data="support")]
+        [InlineKeyboardButton(text="🆘 Техподдержка", callback_data="support")]
     ])
-
 
 def after_answers_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
-
 
 # ==================== СТАРТ ====================
 @dp.message(Command("start"))
@@ -88,17 +80,24 @@ async def start(message: Message, state: FSMContext):
         return
 
     await state.clear()
-    await message.answer("🎉 Добро пожаловать в бот авторских вариантов ЕГЭ!\n\nВыбери предмет:",
-                         reply_markup=main_menu())
+    await message.answer("🎉 Добро пожаловать в бот авторских вариантов ЕГЭ!\n\nВыбери предмет:", reply_markup=main_menu())
 
-
-# ==================== ВЫБОР ПРЕДМЕТА ====================
+# ==================== ВЫБОР ПРЕДМЕТА + ИНСТРУКЦИЯ ====================
 @dp.callback_query(F.data.startswith("subject_"))
 async def subject_selected(callback: CallbackQuery, state: FSMContext):
     if not await subscription_required(callback): return
 
     subject = callback.data.split("_")[1]
     await state.update_data(subject=subject)
+
+    # ←←← Здесь ты можешь вписать свою инструкцию
+    instruction = (
+        "📌 Инструкция по использованию:\n"
+        "• Выбери режим\n"
+        "• Решай вариант\n"
+        "• Нажми 'Я решил' для проверки\n\n"
+        "Удачи в подготовке!"
+    )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎲 Случайный вариант", callback_data="random_variant")],
@@ -107,9 +106,8 @@ async def subject_selected(callback: CallbackQuery, state: FSMContext):
     ])
 
     subject_name = "🎮 Counter-Strike" if subject == "cs" else "⛏️ Minecraft"
-    await callback.message.edit_text(f"{subject_name}\n\nВыбери режим:", reply_markup=kb)
+    await callback.message.edit_text(f"{subject_name}\n\n{instruction}", reply_markup=kb)
     await callback.answer()
-
 
 # ==================== СЛУЧАЙНЫЙ ВАРИАНТ ====================
 @dp.callback_query(F.data == "random_variant")
@@ -121,10 +119,10 @@ async def give_random_variant(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
 
     used = await get_used_variants(user_id, subject)
-    available = [i for i in range(1, 6) if i not in used]  # можно увеличить количество
+    available = [i for i in range(1, 6) if i not in used]
 
     if not available:
-        await callback.message.answer("✅ Ты уже решил все варианты по этому предмету!")
+        await callback.message.answer("✅ Ты уже решил все 5 вариантов по этому предмету!")
         return
 
     variant = random.choice(available)
@@ -132,18 +130,17 @@ async def give_random_variant(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer_document(
         FSInputFile(f"variants/{subject}/variant{variant}.pdf"),
-        caption=f"🎲 Случайный вариант №{variant}\n\nУдачи!"
+        caption=f"🎲 Случайный вариант №{variant} — {subject.upper()}\n\nАвтор: @твой_ник\n\nУдачи в решении!"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
 
     await callback.message.answer("Когда решишь — нажми кнопку ниже:", reply_markup=kb)
     await callback.answer()
-
 
 # ==================== ВЫБОР ВАРИАНТА ВРУЧНУЮ ====================
 @dp.callback_query(F.data == "manual_variant")
@@ -154,15 +151,11 @@ async def manual_variant(callback: CallbackQuery, state: FSMContext):
     subject = data.get("subject")
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-                                                  [InlineKeyboardButton(text=f"Вариант №{i}",
-                                                                        callback_data=f"manual_{subject}_{i}")] for i in
-                                                  range(1, 6)
-                                              ] + [
-                                                  [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]])
+        [InlineKeyboardButton(text=f"Вариант №{i}", callback_data=f"manual_{subject}_{i}")] for i in range(1, 6)
+    ] + [[InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]])
 
     await callback.message.edit_text("Выбери номер варианта:", reply_markup=kb)
     await callback.answer()
-
 
 @dp.callback_query(F.data.startswith("manual_"))
 async def give_manual_variant(callback: CallbackQuery):
@@ -173,18 +166,17 @@ async def give_manual_variant(callback: CallbackQuery):
 
     await callback.message.answer_document(
         FSInputFile(f"variants/{subject}/variant{variant}.pdf"),
-        caption=f"📋 Вариант №{variant}"
+        caption=f"📋 Вариант №{variant} — {subject.upper()}\n\nАвтор: @твой_ник"
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Решено", callback_data=f"answers_{subject}_{variant}")],
+        [InlineKeyboardButton(text="✅ Я решил", callback_data=f"answers_{subject}_{variant}")],
         [InlineKeyboardButton(text="🔙 В меню", callback_data="back_to_menu")],
-        [InlineKeyboardButton(text="🆘 Тех-поддержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
+        [InlineKeyboardButton(text="🆘 Техподдержка", url=f"https://t.me/{ADMIN_USERNAME.strip('@')}")]
     ])
 
     await callback.message.answer("Когда решишь — нажми кнопку ниже:", reply_markup=kb)
     await callback.answer()
-
 
 # ==================== ОТВЕТЫ ====================
 @dp.callback_query(F.data.startswith("answers_"))
@@ -196,12 +188,11 @@ async def send_answers(callback: CallbackQuery):
 
     await callback.message.answer_document(
         FSInputFile(f"answers/{subject}/answer{variant}.pdf"),
-        caption=f"📝 Ответы к варианту №{variant}"
+        caption=f"📝 Ответы к варианту №{variant} — {subject.upper()}\n\nАвтор: @твой_ник"
     )
 
     await callback.message.answer("Что дальше?", reply_markup=after_answers_keyboard())
     await callback.answer()
-
 
 # ==================== ТЕХПОДДЕРЖКА ====================
 @dp.callback_query(F.data == "support")
@@ -214,7 +205,6 @@ async def support(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 @dp.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     if not await subscription_required(callback): return
@@ -222,11 +212,9 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Главное меню:", reply_markup=main_menu())
     await callback.answer()
 
-
 async def main():
-    print("✅ Бот ЕГЭ (CS + Minecraft) запущен!")
+    print("✅ Бот ЕГЭ обновлён!")
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
